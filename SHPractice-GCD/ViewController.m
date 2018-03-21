@@ -8,8 +8,10 @@
 
 #import "ViewController.h"
 
-@interface ViewController ()
-
+@interface ViewController (){
+    dispatch_semaphore_t semaphoreLock;
+}
+@property (nonatomic, assign) NSInteger tickets;
 @end
 
 @implementation ViewController
@@ -20,7 +22,7 @@
 
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    [self demo12];
+    [self demo13];
 }
 
 
@@ -302,6 +304,56 @@
         NSLog(@"这里更新UI");
     });
     NSLog(@"apply之后");
+}
+
+#pragma mark - disaptch_semaphore
+- (void)demo13{
+    /* 代表北京售票点 */ dispatch_queue_t q1 = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_CONCURRENT);
+    /* 代表上海售票点 */ dispatch_queue_t q2 = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_CONCURRENT);
+    self.tickets = 100;
+    semaphoreLock = dispatch_semaphore_create(1);   //同时只允许一个线程访问资源
+    dispatch_async(q1, ^{
+        [self safeSellTicket];
+    });
+    
+    dispatch_async(q2, ^{
+        [self safeSellTicket];
+    });
+}
+
+
+//非安全版
+- (void)unsafeSellTicket{
+    while (1) {
+        if(self.tickets > 0){
+            self.tickets--;
+            [NSThread sleepForTimeInterval:0.2];   //模拟耗时操作
+            NSLog(@"剩余票数%ld,%@",(long)self.tickets,[NSThread currentThread]);
+        }
+        else{  //没票了
+            NSLog(@"剩余票数%ld,%@",(long)self.tickets,[NSThread currentThread]);
+            break;
+        }
+    }
+}
+
+
+//安全版
+- (void)safeSellTicket{
+    while (1) {
+        dispatch_semaphore_wait(semaphoreLock, DISPATCH_TIME_FOREVER);  //加锁
+        if(self.tickets > 0){
+            self.tickets--;
+            [NSThread sleepForTimeInterval:0.2];   //模拟耗时操作
+            NSLog(@"剩余票数%ld,%@",(long)self.tickets,[NSThread currentThread]);
+        }
+        else{  //没票了
+            dispatch_semaphore_signal(semaphoreLock);
+            NSLog(@"剩余票数%ld,%@",(long)self.tickets,[NSThread currentThread]);
+            break;
+        }
+        dispatch_semaphore_signal(semaphoreLock);
+    }
 }
 
 @end
