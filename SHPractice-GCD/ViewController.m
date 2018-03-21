@@ -20,7 +20,7 @@
 
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    [self demo8];
+    [self demo11];
 }
 
 
@@ -149,6 +149,134 @@
         NSLog(@"所有任务都执行完毕啦*********%@",[NSThread currentThread]);   //这里回到主线程刷新UI
     });
     
+}
+
+#pragma mark - dispatch_barrier
+//执行完栅栏之前的任务，然后执行栅栏任务。最后执行栅栏之后的任务
+- (void)demo9{
+    dispatch_queue_t q = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_CONCURRENT);
+    dispatch_async(q, ^{
+        [NSThread sleepForTimeInterval:2];
+        NSLog(@"第1个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"第2个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_barrier_async(q, ^{
+        NSLog(@"第1个barrier任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_barrier_async(q, ^{
+        NSLog(@"第2个barrier任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"第3个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        [NSThread sleepForTimeInterval:2];
+        NSLog(@"第4个任务*******%@",[NSThread currentThread]);
+    });
+    
+    
+    /*
+     
+     2018-03-21 11:39:18.979090+0800 SHPractice-GCD[26495:984304] 第2个任务*******<NSThread: 0x604000462b80>{number = 3, name = (null)}
+     2018-03-21 11:39:20.983903+0800 SHPractice-GCD[26495:984290] 第1个任务*******<NSThread: 0x60000046a1c0>{number = 4, name = (null)}
+     2018-03-21 11:39:20.984268+0800 SHPractice-GCD[26495:984290] 第1个barrier任务*******<NSThread: 0x60000046a1c0>{number = 4, name = (null)}
+     2018-03-21 11:39:20.984565+0800 SHPractice-GCD[26495:984290] 第2个barrier任务*******<NSThread: 0x60000046a1c0>{number = 4, name = (null)}
+     2018-03-21 11:39:20.984826+0800 SHPractice-GCD[26495:984290] 第3个任务*******<NSThread: 0x60000046a1c0>{number = 4, name = (null)}
+     2018-03-21 11:39:22.988300+0800 SHPractice-GCD[26495:984304] 第4个任务*******<NSThread: 0x604000462b80>{number = 3, name = (null)}
+     
+     */
+}
+
+
+//全局队列里加栅栏就和普通的dispatch_async效果一样了。必须是并发队列(DISPATCH_QUEUE_CONCURRENT)
+- (void)demo10{
+    dispatch_queue_t q = dispatch_get_global_queue(0, 0);
+    dispatch_async(q, ^{
+        [NSThread sleepForTimeInterval:2];
+        NSLog(@"第1个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"第2个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_barrier_async(q, ^{
+        NSLog(@"第1个barrier任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_barrier_async(q, ^{
+        NSLog(@"第2个barrier任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        [NSThread sleepForTimeInterval:2];
+        NSLog(@"第3个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"第4个任务*******%@",[NSThread currentThread]);
+    });
+    
+    
+    /*
+     
+     2018-03-21 11:43:18.247669+0800 SHPractice-GCD[26609:989027] 第1个barrier任务*******<NSThread: 0x60400046d800>{number = 5, name = (null)}
+     2018-03-21 11:43:18.247711+0800 SHPractice-GCD[26609:989022] 第2个任务*******<NSThread: 0x600000260bc0>{number = 3, name = (null)}
+     2018-03-21 11:43:18.247758+0800 SHPractice-GCD[26609:989028] 第2个barrier任务*******<NSThread: 0x60400046d5c0>{number = 4, name = (null)}
+     2018-03-21 11:43:18.247989+0800 SHPractice-GCD[26609:989030] 第4个任务*******<NSThread: 0x60400046db80>{number = 6, name = (null)}
+     2018-03-21 11:43:20.248029+0800 SHPractice-GCD[26609:988358] 第1个任务*******<NSThread: 0x60400046dac0>{number = 8, name = (null)}
+     2018-03-21 11:43:20.248029+0800 SHPractice-GCD[26609:989029] 第3个任务*******<NSThread: 0x6000002608c0>{number = 7, name = (null)}
+
+     */
+}
+
+
+//串行队列就没意义了。因为加不加栅栏，都会是顺序执行了。所以这种情况不会用到。没有意义
+- (void)demo11{
+    dispatch_queue_t q = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_SERIAL);   //串行队列
+    dispatch_async(q, ^{
+        [NSThread sleepForTimeInterval:2];
+        NSLog(@"第1个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"第2个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_barrier_async(q, ^{
+        NSLog(@"第1个barrier任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_barrier_async(q, ^{
+        NSLog(@"第2个barrier任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        [NSThread sleepForTimeInterval:2];
+        NSLog(@"第3个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"第4个任务*******%@",[NSThread currentThread]);
+    });
+    
+    /*
+     
+     2018-03-21 11:44:28.456845+0800 SHPractice-GCD[26656:990165] 第1个任务*******<NSThread: 0x600000467e80>{number = 4, name = (null)}
+     2018-03-21 11:44:28.457185+0800 SHPractice-GCD[26656:990165] 第2个任务*******<NSThread: 0x600000467e80>{number = 4, name = (null)}
+     2018-03-21 11:44:28.457461+0800 SHPractice-GCD[26656:990165] 第1个barrier任务*******<NSThread: 0x600000467e80>{number = 4, name = (null)}
+     2018-03-21 11:44:28.457665+0800 SHPractice-GCD[26656:990165] 第2个barrier任务*******<NSThread: 0x600000467e80>{number = 4, name = (null)}
+     2018-03-21 11:44:30.462219+0800 SHPractice-GCD[26656:990165] 第3个任务*******<NSThread: 0x600000467e80>{number = 4, name = (null)}
+     2018-03-21 11:44:30.462574+0800 SHPractice-GCD[26656:990165] 第4个任务*******<NSThread: 0x600000467e80>{number = 4, name = (null)}
+
+     */
 }
 
 @end
