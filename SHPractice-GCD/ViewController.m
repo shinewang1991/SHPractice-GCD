@@ -20,7 +20,7 @@
 
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    [self demo6];
+    [self demo8];
 }
 
 
@@ -92,12 +92,63 @@
     });
 }
 
+
+//dispatch_after 并发队列
 - (void)demo6{
     dispatch_queue_t q = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_CONCURRENT);
     dispatch_time_t t = dispatch_time(DISPATCH_TIME_NOW, (int64_t) (1 * NSEC_PER_SEC));
     dispatch_after(t, q, ^{
         NSLog(@"%@",[NSThread currentThread]);   // <NSThread: 0x600000461a00>{number = 3, name = (null)}   开了新线程
     });
+}
+
+
+#pragma mark - dispatch_once
+
+//dispatch_once 不仅是只执行一次，而且是线程安全的。
+- (void)demo7{
+    for(int i = 0; i < 10; i++){
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{
+            [self once];
+        });
+    };
+}
+
+- (void)once{
+    NSLog(@"进来了");
+    static dispatch_once_t onceToken;
+    NSLog(@"onceToken  %ld",onceToken);
+    dispatch_once(&onceToken, ^{
+        NSLog(@"这里只执行了一次 %@",[NSThread currentThread]);
+    });
+}
+
+#pragma mark - dispatch_group
+//加两个dispatch_group_notify也是可以的。
+- (void)demo8{
+    dispatch_queue_t q = dispatch_get_global_queue(0, 0);   //全局队列
+    dispatch_group_t g = dispatch_group_create();
+    dispatch_group_async(g, q, ^{
+        NSLog(@"第1个任务******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_group_async(g, q, ^{
+        [NSThread sleepForTimeInterval:1];
+        NSLog(@"第2个任务*******%@",[NSThread currentThread]);
+    });
+    
+    dispatch_group_async(g, q, ^{
+        NSLog(@"第3个任务********%@",[NSThread currentThread]);
+    });
+    
+    dispatch_group_notify(g, q, ^{   //这里还是在全局队列里执行,所以这个任务还是会在子线程里执行
+        NSLog(@"所有任务都执行完毕啦*********%@",[NSThread currentThread]);   //这里还是在子线程
+    });
+    
+    dispatch_group_notify(g, dispatch_get_main_queue(), ^{
+        NSLog(@"所有任务都执行完毕啦*********%@",[NSThread currentThread]);   //这里回到主线程刷新UI
+    });
+    
 }
 
 @end
