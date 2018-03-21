@@ -20,7 +20,7 @@
 
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    [self demo11];
+    [self demo12];
 }
 
 
@@ -277,6 +277,31 @@
      2018-03-21 11:44:30.462574+0800 SHPractice-GCD[26656:990165] 第4个任务*******<NSThread: 0x600000467e80>{number = 4, name = (null)}
 
      */
+}
+
+
+//dispatch_apply. 按指定的次数在队列中重复执行block中的任务。并等待全部处理结束了才执行apply之后的任务. (可以用来异步遍历数组操作). 和dispatch_sync操作的作用一样。
+//无论是在串行队列，还是异步队列中，dispatch_apply 都会等待全部任务执行完毕，再执行dispatch_apply外代码。
+- (void)demo12{
+    //    dispatch_queue_t q = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_CONCURRENT);  //并发队列进行异步执行，dispatch_apply 可以在多个线程中同时（异步）遍历多个数字。
+    dispatch_queue_t q = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_SERIAL);   //串行队列, dispatch_apply，那么就和 for 循环一样，按顺序同步执行
+    void(^task)(void) = ^() {
+        for(int i = 0; i < 10 ;i++){
+            NSLog(@"i等于%d",i);
+            NSLog(@"当前线程是%@",[NSThread currentThread]);
+        }
+    };
+    NSLog(@"apply之前");
+    dispatch_apply(10, q, ^(size_t t) {
+        task();
+        NSLog(@"第%zu次循环",t);
+    });
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        //更新UI
+        NSLog(@"这里更新UI");
+    });
+    NSLog(@"apply之后");
 }
 
 @end
