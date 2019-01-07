@@ -22,7 +22,7 @@
 
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    [self demo13];
+    [self demo14];
 }
 
 
@@ -354,6 +354,52 @@
         }
         dispatch_semaphore_signal(semaphoreLock);
     }
+}
+
+//信号量还用于控制同一时间访问资源的线程数。比如我现在要异步下载很多张图片，但是担心同时开辟多个线程下载图片CPU会吃不消。所以加上信号量控制同时最多能有多少个线程进行。
+- (void)demo14{
+    semaphoreLock = dispatch_semaphore_create(2);
+    dispatch_queue_t q = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    
+    dispatch_async(q, ^{
+        dispatch_semaphore_wait(semaphoreLock, DISPATCH_TIME_FOREVER);
+        NSLog(@"Task 1");
+        sleep(1);
+        NSLog(@"Task 1 completed");
+        dispatch_semaphore_signal(semaphoreLock);
+    });
+    
+    dispatch_async(q, ^{
+        dispatch_semaphore_wait(semaphoreLock, DISPATCH_TIME_FOREVER);
+        NSLog(@"Task 2");
+        sleep(1);
+        NSLog(@"Task 2 completed");
+        dispatch_semaphore_signal(semaphoreLock);
+    });
+    
+    dispatch_async(q, ^{
+        dispatch_semaphore_wait(semaphoreLock, DISPATCH_TIME_FOREVER);
+        NSLog(@"Task 3");
+        sleep(1);
+        NSLog(@"Task 3 completed");
+        dispatch_semaphore_signal(semaphoreLock);
+    });
+    
+    dispatch_async(q, ^{
+        dispatch_semaphore_wait(semaphoreLock, DISPATCH_TIME_FOREVER);
+        NSLog(@"Task 4");
+        sleep(1);
+        NSLog(@"Task 4 completed");
+        dispatch_semaphore_signal(semaphoreLock);
+    });
+    
+    dispatch_async(q, ^{
+        dispatch_semaphore_wait(semaphoreLock, DISPATCH_TIME_FOREVER);
+        NSLog(@"Task 5");
+        sleep(1);
+        NSLog(@"Task 5 completed");
+        dispatch_semaphore_signal(semaphoreLock);
+    });
 }
 
 @end
