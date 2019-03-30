@@ -22,7 +22,7 @@
 
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    [self demo14];
+    [self demo21];
 }
 
 
@@ -55,15 +55,32 @@
     NSLog(@"结束了。。。");
 }
 
-//异步+同步队列 (会开启一个线程，顺序执行，“结束了"执行时机不一定)
+//异步+串行队列 (会开启一个线程，顺序执行，“结束了"执行时机不一定)
 - (void)demo3{
     dispatch_queue_t q = dispatch_queue_create("SHPractice-GCD", DISPATCH_QUEUE_SERIAL);
     
-    for(NSInteger i = 0; i < 10 ; i++){
-        dispatch_async(q, ^{
-            NSLog(@"%@ ********** %ld",[NSThread currentThread],i);
-        });
-    }
+//    for(NSInteger i = 0; i < 10 ; i++){
+//        dispatch_async(q, ^{
+//            NSLog(@"%@ ********** %ld",[NSThread currentThread],i);
+//        });
+//    }
+    dispatch_async(q, ^{
+        NSLog(@"开始下载4秒任务");
+        sleep(4);  //下载需要4秒
+        NSLog(@"4秒任务执行完了");
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"开始下载3秒任务");
+        sleep(3);  //下载需要3秒
+        NSLog(@"3秒任务执行完了");
+    });
+    
+    dispatch_async(q, ^{
+        NSLog(@"开始下载5秒任务");
+        sleep(5);  //下载需要5秒
+        NSLog(@"5秒任务执行完了");
+    });
     
     NSLog(@"结束了。。。");
 }
@@ -402,4 +419,251 @@
     });
 }
 
+
+#pragma mark - ABC任务执行结束再执行D
+#pragma mark 同步任务
+//Group
+- (void)demo15{
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_queue_t queue = dispatch_get_global_queue(0, 0);
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"A任务");
+    });
+    
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"B任务");
+    });
+    
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"C任务");
+    });
+    
+    dispatch_group_notify(group, queue, ^{
+        NSLog(@"D任务");
+    });
+}
+
+//栅栏
+- (void)demo16{
+    dispatch_queue_t queue = dispatch_queue_create("com.current.queue", DISPATCH_QUEUE_CONCURRENT);     //必须是自定义的queue. 不能是global queue
+    dispatch_async(queue, ^{
+        NSLog(@"A任务");
+    });
+    
+    dispatch_async(queue, ^{
+        NSLog(@"B任务");
+    });
+    
+    dispatch_async(queue, ^{
+        NSLog(@"C任务");
+    });
+    
+    dispatch_barrier_async(queue, ^{
+        NSLog(@"阻塞等待");
+    });
+    
+    dispatch_async(queue, ^{
+        NSLog(@"D任务");
+    });
+    
+}
+
+//NSOperation
+- (void)demo17{
+    NSBlockOperation *operationA = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"A任务");
+    }];
+    
+    NSBlockOperation *operationB = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"B任务");
+    }];
+    
+    NSBlockOperation *operationC = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"C任务");
+    }];
+    
+    NSBlockOperation *operationD = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"D任务");
+    }];
+    
+    [operationB addDependency:operationA];
+    [operationC addDependency:operationB];
+    [operationD addDependency:operationC];
+    
+    NSOperationQueue *queue = [[NSOperationQueue alloc] init];
+    [queue addOperations:@[operationA,operationB,operationC,operationD] waitUntilFinished:YES];
+    NSLog(@"执行结束了");
+}
+
+#pragma mark 异步任务
+//Group
+- (void)demo18{
+    dispatch_queue_t queue = dispatch_get_global_queue(0, 0);
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_semaphore_t lock = dispatch_semaphore_create(0);
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"A任务开始");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"A任务结束");
+            dispatch_semaphore_signal(lock);
+        });
+        dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
+    });
+    
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"B任务开始");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"B任务结束");
+            dispatch_semaphore_signal(lock);
+        });
+        dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
+    });
+    
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"C任务开始");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"C任务结束");
+            dispatch_semaphore_signal(lock);
+        });
+        dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
+    });
+    
+    dispatch_group_notify(group, queue, ^{
+        NSLog(@"D任务开始");
+    });
+}
+
+//Group Enter Leave
+- (void)demo19{
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_queue_t queue = dispatch_get_global_queue(0, 0);
+    dispatch_group_enter(group);
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"A任务开始");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"A任务结束");
+            dispatch_group_leave(group);
+        });
+    });
+    
+    dispatch_group_enter(group);
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"B任务开始");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"B任务结束");
+            dispatch_group_leave(group);
+        });
+    });
+    
+    dispatch_group_enter(group);
+    dispatch_group_async(group, queue, ^{
+        NSLog(@"C任务开始");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"C任务结束");
+            dispatch_group_leave(group);
+        });
+    });
+    
+    dispatch_group_notify(group, queue, ^{
+        NSLog(@"D任务开始");
+    });
+}
+
+//异步任务顺序执行
+- (void)demo20{
+    dispatch_queue_t queue = dispatch_queue_create(0, DISPATCH_QUEUE_SERIAL);
+    dispatch_semaphore_t lock = dispatch_semaphore_create(1);
+    dispatch_async(queue, ^{
+        dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
+        NSLog(@"A任务");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"A任务结束");
+            dispatch_semaphore_signal(lock);
+        });
+    });
+    
+    dispatch_async(queue, ^{
+        dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
+        NSLog(@"B任务");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"B任务结束");
+            dispatch_semaphore_signal(lock);
+        });
+    });
+    
+    dispatch_async(queue, ^{
+        dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
+        NSLog(@"C任务");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"C任务结束");
+            dispatch_semaphore_signal(lock);
+        });
+    });
+    
+    dispatch_async(queue, ^{
+        dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
+        NSLog(@"D任务");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"D任务结束");
+            dispatch_semaphore_signal(lock);
+        });
+    });
+}
+
+#pragma mark - AB执行完->D, BC->E,DE->F
+/*
+    A B C
+     D E
+      F
+ */
+- (void)demo21{
+    NSBlockOperation *operationA = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"A任务");
+    }];
+    
+    NSBlockOperation *operationB = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"B任务");
+    }];
+    
+    NSBlockOperation *operationC = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"C任务");
+    }];
+    
+    NSBlockOperation *operationD = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"D任务");
+    }];
+    
+    NSBlockOperation *operationE = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"E任务");
+    }];
+    
+    NSBlockOperation *operationF = [NSBlockOperation blockOperationWithBlock:^{
+        NSLog(@"F任务");
+    }];
+    
+    [operationD addDependency:operationA];
+    [operationD addDependency:operationB];
+    
+    [operationE addDependency:operationB];
+    [operationE addDependency:operationC];
+    
+    [operationF addDependency:operationD];
+    [operationF addDependency:operationE];
+    
+    
+    NSOperationQueue *queue = [[NSOperationQueue alloc] init];
+    [queue addOperations:@[operationA,operationB,operationC,operationF,operationE,operationD] waitUntilFinished:YES];
+    NSLog(@"所有任务执行结束");
+}
+
+
+//异步任务
+/*
+    A B C
+     D E
+      F
+ */
+- (void)demo22{
+
+}
 @end
