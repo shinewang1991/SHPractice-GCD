@@ -22,7 +22,7 @@
 
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event{
-    [self demo21];
+    [self demo23];
 }
 
 
@@ -665,5 +665,43 @@
  */
 - (void)demo22{
 
+}
+
+
+//面试被虐的一道题
+- (void)demo23{
+    dispatch_queue_t queue = dispatch_queue_create(0, DISPATCH_QUEUE_CONCURRENT);
+    dispatch_async(queue, ^{
+        sleep(1);
+        NSLog(@"1");
+    });
+    
+    dispatch_sync(queue, ^{
+        NSLog(@"2");
+    });
+    
+    dispatch_barrier_async(queue, ^{
+        NSLog(@"3");
+    });
+    
+    dispatch_async(queue, ^{
+        NSLog(@"4");
+    });
+    
+    NSLog(@"5");
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSLog(@"6");
+    });
+    
+    while (1) {
+
+    }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSLog(@"7");
+    });
+    
+    //输出结果:25134
 }
 @end
